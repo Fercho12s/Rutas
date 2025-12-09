@@ -1,0 +1,204 @@
+DESCRIPCIÓN GENERAL
+-------------------
+Crea una aplicación web completa llamada **"Rutas Seguras"** para un negocio de transporte. 
+El proyecto debe ser una SPA en **React** (preferiblemente con Vite o Create React App) y debe incluir un backend (Node.js + Express) y una base de datos (MongoDB o PostgreSQL). Entregar todo el proyecto organizado en una carpeta o zip listo para ejecutar, con README, scripts y evidencia (capturas y un video de 1 minuto). También desplegar la app frontend en un hosting gratuito (Netlify, Vercel, o similar) y el backend en un hosting gratuito (Render, Railway, o similar). Incluir la URL pública del despliegue.
+
+REQUISITOS FUNCIONALES (Datos principales)
+------------------------------------------
+- Nombre del Negocio: **Rutas Seguras**
+- Categoría: **Transporte**
+- Módulos funcionales sugeridos (mínimo 2): **Gestión de flota**, **Control de rutas**
+- Requerimientos principales (mínimo 3):
+  1. Registro y gestión de usuarios (roles: admin, conductor, cliente).
+  2. Gestión de rutas (crear/editar/eliminar/visualizar rutas con puntos origen/destino, horario, distancia).
+  3. Gestión de unidades (vehículos): matrícula, modelo, capacidad, estado, asignación a rutas.
+- Datos a mostrar: rutas, unidades, horarios, conductores asignados, estado de la ruta (activo, en curso, finalizado).
+
+MÓDULOS / COMPONENTES (mínimo 3 módulos)
+----------------------------------------
+Dividir en al menos 3 módulos lógicos. Proponer:  
+1. **Dashboard**: resumen general (estadísticas de rutas activas, unidades disponibles, próximos horarios).  
+   - Componentes: Tarjetas resumen, gráfico de ocupación (gráfico simple), lista de próximas rutas.
+2. **Gestión de Rutas**:
+   - Crear / Editar / Eliminar rutas.
+   - Vista lista con búsqueda y filtro (por categoría, horario, estado).
+   - Vista detalle de ruta (mapa opcional, punto origen/destino, horarios).
+3. **Gestión de Flota (Unidades)**:
+   - CRUD de unidades (vehículos).
+   - Asignación de unidad a ruta.
+4. **Gestión de Usuarios & Autenticación**:
+   - Registro / Login / Roles.
+   - Panel de administración de usuarios (activar/desactivar).
+5. **Acceso Público**:
+   - Página principal (landing) con breve introducción, buscador de rutas disponibles y formulario de contacto.
+
+REQUISITOS UI / UX
+------------------
+- Incluir: barra de búsqueda, cabecera con logo, pie de página (descripción o info del desarrollador/empresa), menú lateral o superior con selección de módulos, breadcrumbs.
+- Diseño responsivo (móvil / tablet / desktop).
+- Usar componentes para tarjetas, tablas, formularios y botones.
+- Reutilizar componentes (Header, Footer, SearchBar, Modal, Table, Card).
+
+TECNOLOGÍAS (front / back / db / otras)
+--------------------------------------
+- Frontend: React + React Router, State management (React Context o Redux), Tailwind CSS o Material UI (elige uno), Vite o CRA.
+- Backend: Node.js + Express, estructura con controllers/services/models.
+- Base de datos: MongoDB (Mongoose) o PostgreSQL (Sequelize/Knex). (Si eliges MongoDB, proveer ejemplo de conexión a Atlas).
+- Autenticación: JWT, bcrypt para hashing de contraseñas.
+- Almacenamiento multimedia: local (carpeta /uploads) y endpoints para subir imágenes; opcional integrar Cloudinary.
+- Mapas (opcional para rutas): Leaflet o Google Maps (usar Leaflet para evitar keys si se solicita).
+- Testing: Jest + React Testing Library (tests básicos); supertest para endpoints críticos.
+- Linter & Formatter: ESLint + Prettier.
+- Build & Scripts: NPM scripts para dev, build y start.
+
+API / ENDPOINTS (mínimos)
+-------------------------
+Proponer endpoints RESTful:
+
+Auth:
+- POST /api/auth/register
+- POST /api/auth/login
+- GET /api/auth/me
+
+Usuarios:
+- GET /api/users
+- GET /api/users/:id
+- POST /api/users
+- PUT /api/users/:id
+- DELETE /api/users/:id
+
+Rutas:
+- GET /api/routes
+- GET /api/routes/:id
+- POST /api/routes
+- PUT /api/routes/:id
+- DELETE /api/routes/:id
+- GET /api/routes?search=&status=&date=
+
+Unidades (flota):
+- GET /api/units
+- GET /api/units/:id
+- POST /api/units
+- PUT /api/units/:id
+- DELETE /api/units/:id
+- POST /api/units/:id/assign-route
+
+Multimedia:
+- POST /api/uploads (subir imagenes o videos)
+
+Requisitos de seguridad en endpoints:
+- Proteger rutas con middleware auth (JWT).
+- Middleware roleCheck para endpoints admin-only.
+- Validación de datos (celebrate/Joi o express-validator).
+- Sanitizar inputs para evitar inyección.
+
+ESQUEMA / MODELOS (ejemplos)
+----------------------------
+Proveer modelos Mongoose o tablas SQL:
+
+User: { name, email, passwordHash, role, phone, createdAt, active }
+Route: { title, origin, destination, stops: [coords], schedule: [{day, time}], distanceKm, status, assignedUnitId, assignedDriverId }
+Unit: { plate, model, capacity, year, status, images, currentRouteId }
+Booking (opcional): { userId, routeId, seatsBooked, status }
+
+UI: Especificar campos mínimos en formularios (por ejemplo, crear ruta: título, origen, destino, horario, distancia, capacidad).
+
+EVIDENCIAS Y ENTREGA (capturas y video)
+--------------------------------------
+Entregar dentro del zip o carpeta:
+1. Código completo frontend y backend con README en la raíz explicando cómo ejecutar (instalar dependencias, variables de entorno, comandos).
+2. Carpeta `/docs` con:
+   - Capturas de pantalla (jpg/png) de: Landing, Dashboard, Gestión de Rutas, Gestión de Unidades, Login, Registro, vista detalle de ruta, formulario de creación de ruta.
+   - Captura de la estructura de directorio (comando tree o screenshot del explorador).
+   - Capturas de fragmentos de código clave (consola/terminal mostrando servidor en ejecución).
+3. Archivo `evidence.mp4` (video de ~1 minuto) describiendo la app: qué hace, módulos, cómo se usa (navegación rápida). Indicar pasos para grabarlo (navegar a cada módulo y comentar).
+4. Archivo ZIP preparado: `rutas-seguras.zip` que contenga frontend/ backend / docs / README / scripts.
+
+ORGANIZACIÓN DE DIRECTORIO (ejemplo)
+-----------------------------------
+rutas-seguras/
+├─ README.md
+├─ frontend/
+│  ├─ package.json
+│  ├─ src/
+│  │  ├─ App.jsx
+│  │  ├─ main.jsx
+│  │  ├─ routes/
+│  │  ├─ components/
+│  │  ├─ pages/
+│  │  ├─ services/ (api client)
+│  │  └─ assets/
+│  └─ public/
+├─ backend/
+│  ├─ package.json
+│  ├─ src/
+│  │  ├─ index.js
+│  │  ├─ routes/
+│  │  ├─ controllers/
+│  │  ├─ models/
+│  │  ├─ middlewares/
+│  │  └─ utils/
+│  └─ uploads/
+├─ docs/
+│  ├─ screenshots/
+│  └─ evidence.mp4
+└─ .env.example
+
+SEGURIDAD Y BUENAS PRÁCTICAS
+---------------------------
+- No exponer secretos en el repo; incluir `.env.example` con variables necesarias.
+- Hashear contraseñas con bcrypt.
+- Usar HTTPS en despliegue (si el hosting lo permite).
+- Rate limiting básico en backend (express-rate-limit).
+- Helmet para seguridad de cabeceras.
+- CORS configurado con lista de orígenes permitidos.
+- Validación de inputs y manejo de errores estandarizado.
+- Escaneo básico de vulnerabilidades (npx npm audit) y correcciones en package-lock.
+
+MULTIMEDIA / PLUGINS / ACCESIBILIDAD
+-----------------------------------
+- Permitir subir imagenes para unidades y rutas.
+- Incluir video demo dentro de `docs/`.
+- Implementar etiquetas alt en imágenes, estructuras semánticas (header/main/footer), y soporte para navegación por teclado.
+- Animaciones simples con CSS o framer-motion (opcional).
+- Soporte para i18n mínimo (español por defecto).
+
+PRUEBAS / QA
+------------
+- Incluir 3-5 tests React (component render + interacción).
+- Incluir 2 tests de integración para endpoints críticos (auth, create-route).
+- Incluir checklist de QA en docs: test de roles, test de formularios, test de subida de archivos, test de despliegue.
+
+DESPLIEGUE
+----------
+- TLS/HTTPS en hosting frontend (Netlify/Vercel recommended), backend en Render/Railway.
+- Proveer instrucciones detalladas en README para variables de entorno, cómo conectar a DB en producción, y cómo desplegar.
+- Incluir URL pública frontend y endpoint base del backend (por ejemplo: https://rutasseguras.example.com / https://api-rutasseguras.example.com).
+
+CRITERIOS DE ACEPTACIÓN (entregable mínimo)
+------------------------------------------
+- Proyecto en zip con estructura señalada.
+- Frontend funcional en React con navegación y los módulos principales.
+- Backend funcionando con endpoints listados y autenticación JWT.
+- Base de datos con modelos implementados y datos de ejemplo (seed script opcional).
+- Capturas de pantalla y video de 1 minuto en /docs.
+- URLs públicas de despliegue.
+- README con pasos claros de instalación, ejecución y despliegue.
+- Código limpio, linter configurado y .env.example.
+
+NOTAS FINALES / EXTRAS
+----------------------
+- Añadir un script `seed` para crear usuarios de prueba (admin, driver, client) y algunas rutas/unidades.
+- Entregar también un archivo `deployment-notes.md` con pasos precisos usados para desplegar (puede ayudar a reproducir).
+- Si la app incluye mapas, usar Leaflet + OpenStreetMap para no requerir API key.
+- Optimizar imágenes y usar lazy-loading en listas largas.
+
+ENTREGABLE (formato de petición)
+--------------------------------
+Al finalizar entrega un ZIP llamado `rutas-seguras.zip` y un archivo `deliverables.txt` en la raíz que liste:
+- URLs de despliegue (frontend, backend)
+- Comandos para ejecutar local (frontend & backend)
+- Credenciales de prueba (admin / driver / client)
+- Ubicación del video y capturas en carpeta /docs
+
+Fin del prompt.
