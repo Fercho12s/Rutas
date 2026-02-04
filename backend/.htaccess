@@ -1,0 +1,56 @@
+# Apache .htaccess para Rutas Seguras Backend
+# Ubicar en: /backend/.htaccess
+
+# Habilitar rewrite engine
+RewriteEngine On
+
+# Remover /index.php de la URL (si aplica)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?/$1 [QSA,L]
+
+# Habilitar CORS para cualquier origen
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+Header always set Access-Control-Max-Age "86400"
+
+# Manejar preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ - [L]
+
+# Forzar HTTPS (descomentar en producción)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Comprimir contenido
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+</IfModule>
+
+# Caché del navegador (30 días)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html "access 1 day"
+    ExpiresByType application/json "access 1 day"
+    ExpiresByType text/javascript "access 30 days"
+    ExpiresByType application/javascript "access 30 days"
+</IfModule>
+
+# Bloquear acceso a archivos sensibles
+<FilesMatch "^(config|logs|uploads)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Prevenir listado de directorios
+Options -Indexes
+
+# Seguridad: No permitir ejecución de scripts PHP en carpetas upload
+<Directory "uploads">
+    php_flag engine off
+</Directory>

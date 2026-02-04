@@ -1,0 +1,795 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║               RUTAS SEGURAS - VERDADES IMPORTANTES DEL BACKEND                ║
+║                  Puntos clave que debes conocer y recordar                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #1: EL JWT EXPIRA DESPUÉS DE 24 HORAS
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: CRÍTICA 🔴
+
+QUÉ SIGNIFICA:
+──────────────
+Cuando un usuario inicia sesión, recibe un token JWT.
+Este token es válido durante 24 horas.
+Después de 24 horas, el token expira automáticamente.
+
+POR QUÉ SE HACE ASÍ:
+───────────────────
+Razón 1: SEGURIDAD
+  - Si alguien roba un token, solo lo puede usar 24 horas
+  - Reduce ventana de vulnerabilidad
+
+Razón 2: PROTOCOLO JWT
+  - JWT es stateless (sin estado servidor)
+  - No se puede "revocar" un token en tiempo real
+  - La única forma es esperar que expire
+
+Razón 3: BALANCE
+  - 24h es balance entre seguridad y experiencia
+  - Enough para sesión de un día
+  - No tan largo que sea riesgo
+
+QUÉ HACER:
+──────────
+En React, cuando recibas error 401:
+1. Limpiar localStorage del token
+2. Redirigir a /login
+3. Mostrar mensaje: "Sesión expirada, inicia sesión nuevamente"
+
+CÓDIGO REACT:
+──────────────
+useEffect(() => {
+  if (response.status === 401) {
+    localStorage.removeItem('token');
+    navigate('/login');
+  }
+}, [response]);
+
+¿CÓMO MEJORAR ESTO?
+──────────────────
+FUTURO: Implementar refresh tokens
+  - Token principal (short-lived): 1 hora
+  - Refresh token (long-lived): 30 días
+  - Cuando principal expira, usar refresh para renovar
+  - Sin hacer login otra vez
+
+Pero eso está FUERA DE ESTE PROYECTO (es feature extra).
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #2: EL JWT_SECRET ES LA LLAVE MAESTRA
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: CRÍTICA 🔴
+
+QUÉ ES:
+───────
+Variable en config/config.php:
+define('JWT_SECRET', 'tu_secreto_aqui');
+
+Este secret es la LLAVE para:
+  ✅ Firmar (generar) tokens
+  ✅ Verificar (validar) tokens
+
+SIN EL SECRET:
+───────────────
+❌ No se pueden generar tokens seguros
+❌ No se puede verificar si un token es genuino
+❌ Alguien puede falsificar tokens
+
+SI ALGUIEN ROBA EL SECRET:
+──────────────────────────
+❌ Puede generar tokens falsos
+❌ Se haría pasar por cualquier usuario
+❌ Sistema de seguridad completamente comprometido
+
+POR ESO:
+────────
+✅ En PRODUCCIÓN, DEBE SER ÚNICO Y FUERTE
+✅ NO debe ser "secret123" o similar
+✅ Genera con: php -r "echo bin2hex(random_bytes(32));"
+✅ Ejemplo: 7e2b3a1c9d5f4e8b6a2c0d9e1f3a5b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f
+
+DÓNDE GUARDARLO:
+─────────────────
+❌ NO en GitHub (públicamente)
+❌ NO en archivos compartidos
+✅ SÍ en config.php (servidor privado)
+✅ SÍ en variables de entorno (producción)
+
+CÓMO CAMBIAR EN PRODUCCIÓN:
+───────────────────────────
+Si alguien roba el secret:
+1. Todos los tokens vigentes quedan INVALIDADOS
+2. Cambiar JWT_SECRET en config.php
+3. Todos los usuarios deben hacer login nuevamente
+4. Problema resuelto
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #3: LA CONTRASEÑA NUNCA SE GUARDA EN TEXTO PLANO
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: CRÍTICA 🔴
+
+QUÉ SUCEDE:
+───────────
+Usuario ingresa: "MiPass123!"
+                    ▼ Backend ejecuta
+                password_hash("MiPass123!", PASSWORD_BCRYPT, ['cost' => 12])
+                    ▼ Resultado
+        "$2y$12$mIVVPPMR8PJNvHjN5uC8jO.NjYQmzJVCsKzQ0..."
+
+ESTO SE GUARDA EN BD:
+─────────────────────
+❌ NO: "MiPass123!"  ← Nunca en texto plano
+✅ SÍ: "$2y$12$..." ← Hash irreversible
+
+POR QUÉ:
+────────
+Razón 1: NO REVERSIBLE
+  - No se puede "desencryptar" el hash
+  - Nadie (ni el admin) puede ver la contraseña original
+  - Si alguien roba BD, no obtiene contraseñas
+
+Razón 2: CADA VEZ DIFERENTE
+  - Mismo password genera hash diferente
+  - Esto se llama "salt"
+  - Frena ataques con diccionarios
+
+Razón 3: LENTO
+  - BCRYPT con cost 12 = ~1 segundo por hash
+  - Frena ataques brute force (probar millones de passwords)
+  - Sin BCRYPT: 1000 intentos por segundo
+  - Con BCRYPT: 1 intento por segundo
+
+CÓMO SE VALIDA:
+────────────────
+Usuario hace login: email="juan@mail.com", password="MiPass123!"
+                    ▼ Backend ejecuta
+        password_verify("MiPass123!", "$2y$12$...")
+                    ▼ Compara
+        ¿El hash generado de "MiPass123!" coincide con el guardado?
+                    ▼ Resultado
+        SÍ: ✅ Login correcto
+        NO: ❌ Contraseña incorrecta
+
+IMPORTANTE:
+────────────
+❌ NO se puede recuperar contraseña original
+✅ SOLO se puede resetear a una nueva
+
+Si usuario olvida:
+  1. Enviar email con link reset
+  2. Usuario ingresa nueva contraseña
+  3. Se hashea la nueva con BCRYPT
+  4. Se reemplaza el hash viejo
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #4: LA BD ES LA FUENTE DE LA VERDAD
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+QUÉ SIGNIFICA:
+──────────────
+Lo que está en la BD es la VERDAD.
+Lo que está en localStorage es copia/cache.
+
+EJEMPLO:
+────────
+Usuario en PC1:
+  localStorage = { user: { name: "Juan", email: "juan@..." } }
+
+Administrador edita datos en BD:
+  BD.usuarios.name = "Juan Carlos Actualizado"
+
+Usuario sigue viendo en PC1:
+  localStorage sigue mostrando: "Juan" (obsoleto)
+
+¿CUÁL ES LA VERDAD?
+──────────────────
+✅ VERDAD: "Juan Carlos Actualizado" (en BD)
+❌ FALSO: "Juan" (en localStorage)
+
+POR QUÉ:
+────────
+localStorage es tan solo cache local.
+Si múltiples dispositivos acceden:
+  PC1: Puede ver datos diferentes de PC2
+  PC2: Tiene su propia copia de localStorage
+  
+Pero si llamas a /api/auth/me:
+  Ambos obtienen datos ACTUALIZADOS de la BD
+
+IMPLICACIÓN:
+─────────────
+Después de cualquier acción importante:
+  ✅ Recargar datos desde servidor
+  ✅ Actualizar localStorage con respuesta
+  ✅ Mostrar datos actualizados
+
+CÓDIGO REACT:
+──────────────
+// ❌ MAL
+const name = localStorage.getItem('user').name; // Podría estar viejo
+
+// ✅ BIEN
+const response = await api.auth.me();
+setUser(response.data);
+localStorage.setItem('user', JSON.stringify(response.data));
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #5: CORS ES TU MEJOR AMIGO (Y ENEMIGO)
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+CORS = Cross-Origin Resource Sharing
+
+QUÉ ES:
+────────
+Control de quién puede hacer requests a tu backend.
+
+ESCENARIOS:
+───────────
+1. Frontend en localhost:3000
+   Backend en localhost:8000
+   ❌ CORS BLOQUEA (diferentes puertos)
+
+2. Frontend en https://app.netlify.app
+   Backend en https://backend.com
+   ❌ CORS BLOQUEA (diferentes dominios)
+
+3. Frontend en malicious.com
+   Backend en https://backend.com
+   ❌ CORS BLOQUEA (intruso bloqueado)
+
+CÓMO SE CONFIGURA:
+───────────────────
+En backend/config/config.php:
+
+define('FRONTEND_URL', 'https://app.netlify.app');
+
+En .htaccess (Apache):
+  Header always set "Access-Control-Allow-Origin" "https://app.netlify.app"
+
+¿QUÉ PASA?
+──────────
+Si request viene de https://app.netlify.app:
+  ✅ Header Access-Control-Allow-Origin = https://app.netlify.app
+  ✅ Frontend recibe respuesta
+  ✅ Request exitoso
+
+Si request viene de malicious.com:
+  ❌ Header Access-Control-Allow-Origin ≠ malicious.com
+  ❌ Frontend BLOQUEA respuesta (aunque servidor la envía)
+  ❌ Error: "CORS policy blocked"
+
+IMPORTANTE:
+────────────
+✅ En desarrollo: Usa localhost
+✅ En producción: Usa tu dominio Netlify
+❌ NUNCA uses "*" (wildcard) → Inseguro
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #6: LAS VALIDACIONES SON EN 3 NIVELES
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+NIVEL 1: FRONTEND (React)
+──────────────────────────
+Validaciones locales:
+  ✅ Email válido: "@" y "." presentes
+  ✅ Contraseña: no vacía
+  ✅ Campos requeridos llenos
+
+Propósito: UX mejor (feedback inmediato)
+Seguridad: ❌ DÉBIL (usuario puede saltarse)
+
+NIVEL 2: MIDDLEWARE (Backend)
+──────────────────────────────
+Validaciones de entrada:
+  ✅ JSON válido
+  ✅ Content-Type correcto
+  ✅ Campos requeridos presentes
+
+Propósito: Evitar errores parsing
+Seguridad: MEDIA (evita crashes)
+
+NIVEL 3: LÓGICA DE NEGOCIO (Backend)
+──────────────────────────────────────
+Validaciones de reglas:
+  ✅ Email único
+  ✅ Contraseña suficientemente fuerte
+  ✅ Formato teléfono válido
+  ✅ Recurso existe
+  ✅ Usuario tiene permiso
+
+Propósito: Integridad de datos
+Seguridad: ✅ FUERTE (insalvable)
+
+NIVEL 4: BD (MySQL)
+──────────────────
+Validaciones de constraints:
+  ✅ UNIQUE (email no duplicado)
+  ✅ NOT NULL (campos obligatorios)
+  ✅ FOREIGN KEY (relaciones válidas)
+  ✅ CHECK (valores permitidos)
+
+Propósito: Última línea de defensa
+Seguridad: ✅ INSALVABLE
+
+POR QUÉ 4 NIVELES:
+───────────────────
+Defensa en profundidad = Seguridad robusta
+
+Si un atacante:
+  ❌ Salta validación frontend (fácil en dev tools)
+  ✅ Validaciones middleware lo atrapan
+  
+  ❌ Modifica middleware
+  ✅ Lógica de negocio lo atrapan
+  
+  ❌ Modifica lógica de negocio
+  ✅ Constraints de BD lo atrapan
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #7: NUNCA EXPONGAS DETALLES DE ERROR EN PRODUCCIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: CRÍTICA 🔴
+
+DESARROLLADOR PODRÍA HACER:
+────────────────────────────
+echo "Error: " . $exception->getMessage();
+// Output: "Error: Table 'rutas_seguras.usuarios' doesn't exist"
+
+PROBLEMAS:
+──────────
+❌ Expone estructura de BD (nombres tablas)
+❌ Expone tecnología (MySQL, PHP)
+❌ Facilita ataques SQL injection
+❌ Facilita ataques de fuerza bruta
+
+DÓNDE LO HICIMOS CORRECTAMENTE:
+────────────────────────────────
+En controllers/AuthController.php:
+
+try {
+  // código que puede fallar
+} catch (Exception $e) {
+  // ❌ NO: return Response::error($e->getMessage());
+  // ✅ SÍ: return Response::error("Error al procesar solicitud");
+}
+
+EN FRONTEND, USUARIO VE:
+─────────────────────────
+{
+  "success": false,
+  "message": "Error al procesar solicitud",
+  "error": "Internal Server Error"
+}
+
+EN BACKEND, ADMIN VE (logs):
+────────────────────────────
+backend/logs/error_2026-02-04.log:
+[2026-02-04 10:30:45] Error: Table 'rutas_seguras.usuarios' doesn't exist
+  Stack: ...
+  File: models/User.php line 45
+  Context: $db->query($sql, $params)
+
+QUÉ RESULTADO:
+───────────────
+✅ Usuario ve mensaje genérico (seguro)
+✅ Admin puede debuggear viendo logs
+✅ Información sensible no exponible
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #8: EL SOFT DELETE PRESERVA DATOS PARA AUDITORÍA
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: MEDIA 🟡
+
+QUÉ ES SOFT DELETE:
+────────────────────
+En lugar de DELETE, se actualiza un campo "activo":
+
+❌ HARD DELETE (elimina completamente):
+DELETE FROM usuarios WHERE id = 5;
+Resultado: Usuario 5 desaparece de BD
+Problema: No hay historial, imposible auditar
+
+✅ SOFT DELETE (marca como inactivo):
+UPDATE usuarios SET activo = 0 WHERE id = 5;
+Resultado: Usuario 5 "existe" pero marcado inactivo
+
+DÓNDE LO USAMOS:
+─────────────────
+En BD schema:
+  ALTER TABLE usuarios ADD COLUMN activo INT(1) DEFAULT 1;
+
+En queries:
+  SELECT * FROM usuarios WHERE activo = 1;  ← Solo activos
+
+VENTAJAS:
+──────────
+✅ Auditoría: Puedes ver qué se "eliminó"
+✅ Compliance: Cumple regulaciones (GDPR, etc)
+✅ Recuperación: Puedes "restaurar" si es error
+✅ Historial: Mantiene integridad de referencias
+
+DESVENTAJAS:
+─────────────
+❌ Más datos en BD (no se eliminan)
+❌ Queries más complejas (siempre WHERE activo = 1)
+❌ Confusión si no se documenta
+
+FUTURO:
+────────
+⏳ Hard delete puede agregarse como feature:
+  - Admin-only
+  - Solo después de 30 días
+  - Con confirmación
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #9: DATABASE CLASS USA SINGLETON PATTERN
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: MEDIA 🟡
+
+QUÉ ES SINGLETON:
+──────────────────
+Patrón que GARANTIZA una sola instancia de clase en toda la aplicación.
+
+EN NUESTRO CÓDIGO:
+───────────────────
+class Database {
+    private static $instance = null;
+    
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new Database();
+        }
+        return self::$instance;
+    }
+}
+
+CÓMO SE USA:
+─────────────
+$db = Database::getInstance();  ← Primera vez: crea instancia
+$db = Database::getInstance();  ← Segunda vez: retorna la MISMA instancia
+
+BENEFICIOS:
+────────────
+✅ Una sola conexión a BD (eficiente)
+✅ No se abre múltiples conexiones
+✅ Reutiliza la misma conexión PDO
+✅ Reduce overhead
+
+CÓMO NO HACERLO:
+─────────────────
+❌ $db = new Database();        ← Múltiples instancias
+❌ $db = new Database();        ← Múltiples conexiones
+❌ $db = new Database();        ← Desperdicia recursos
+
+IMPORTANTE:
+────────────
+Nunca hagas:
+  public function __construct() {  // ← Constructor PRIVADO en Database.php
+    // ...
+  }
+
+Eso previene:
+  ❌ $db = new Database();  ← Error: Constructor privado
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #10: PREPARED STATEMENTS PREVIENEN SQL INJECTION
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: CRÍTICA 🔴
+
+SQL INJECTION = Ataque insertando SQL malicioso
+
+VULNERABLE (NO HACER):
+───────────────────────
+$email = $_GET['email'];  // "admin@mail.com' OR '1'='1"
+$sql = "SELECT * FROM usuarios WHERE email = '" . $email . "'";
+// Resultado: SELECT * FROM usuarios WHERE email = 'admin@mail.com' OR '1'='1'
+// ❌ Devuelve TODOS los usuarios
+
+PROTEGIDO (LO QUE HACEMOS):
+────────────────────────────
+$email = $_GET['email'];
+$sql = "SELECT * FROM usuarios WHERE email = ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$email]);
+// Resultado: El motor de BD sabe que $email es PARÁMETRO
+// ✅ Ejecuta: SELECT * FROM usuarios WHERE email = 'admin@mail.com' OR '1'='1'
+//    Pero como STRING LITERAL, no como SQL
+
+CÓMO FUNCIONA:
+───────────────
+Prepared statement en 2 fases:
+
+FASE 1 (Prepare):
+  $sql = "SELECT * FROM usuarios WHERE email = ?"
+  ← Motor de BD entiende estructura SQL
+
+FASE 2 (Execute):
+  $stmt->execute(['admin@mail.com' OR '1'='1'])
+  ← Motor sabe que TODO es valor, no SQL
+
+POR ESO FUNCIONA:
+───────────────
+❌ NO: SELECT * WHERE email = 'admin' OR '1'='1'  ← SQL se ejecuta
+✅ SÍ: SELECT * WHERE email = 'admin\' OR \'1\'=\'1'  ← Escapeado
+
+EN NUESTRO CÓDIGO:
+───────────────────
+$sql = "SELECT * FROM usuarios WHERE email = ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([':email' => $email]);  ← Parámetro seguro
+
+O con named parameters:
+$sql = "SELECT * FROM usuarios WHERE email = :email";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([':email' => $email]);  ← Más claro
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #11: CONFIGURACIÓN DEBE CAMBIAR ENTRE AMBIENTES
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+AMBIENTES:
+──────────
+DESARROLLO (tu PC)
+  db_host: localhost
+  db_user: root
+  db_pass: (vacío)
+  jwt_secret: dev-key-xyz
+
+PRODUCCIÓN (servidor)
+  db_host: 192.168.x.x (servidor remoto)
+  db_user: usuario_seguro
+  db_pass: contraseña_fuerte
+  jwt_secret: 7e2b3a1c9d5f4e8b...
+
+PROBLEMA:
+──────────
+Si hardcodeas producción en config.php:
+  ❌ Al hacer test local, se conecta a servidor remoto
+  ❌ Si expones repo en GitHub, credenciales públicas
+  ❌ Posible hack
+
+SOLUCIÓN (No implementada en este proyecto):
+──────────────────────────────────────────────
+MEJOR PRÁCTICA:
+  .env.local
+  .env.production
+
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+
+PARA ESTE PROYECTO:
+──────────────────
+✅ En desarrollo: Edita config.php con valores locales
+✅ En producción: Edita config.php con valores servidor
+❌ NUNCA commites config.php a GitHub
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #12: NO CONFUNDAS AUTENTICACIÓN CON AUTORIZACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+AUTENTICACIÓN = ¿Quién eres?
+────────────────────────────
+Verificar que eres quien dices ser.
+
+PROCESO:
+  1. Ingresas email: juan@mail.com
+  2. Ingresas password: MiPass123!
+  3. Backend verifica: ✅ Credenciales correctas
+  4. Se te otorga token JWT
+  5. Ya estás AUTENTICADO
+
+
+AUTORIZACIÓN = ¿Qué puedes hacer?
+──────────────────────────────────
+Verificar qué permisos tienes.
+
+PROCESO:
+  1. Haces request: POST /api/routes/create
+  2. Token JWT presente ✅ AUTENTICADO
+  3. Backend verifica rol en token: "cliente"
+  4. Verifica: ¿cliente puede crear rutas? NO
+  5. Se rechaza request ❌ HTTP 403 FORBIDDEN
+
+
+EJEMPLO:
+─────────
+Usuaria: María (cliente)
+  ✅ Autenticada: Tiene token JWT válido
+  ❌ No autorizada: No es admin, no puede crear rutas
+
+Usuario: Luis (admin)
+  ✅ Autenticado: Tiene token JWT válido
+  ✅ Autorizado: Es admin, SÍ puede crear rutas
+
+EN CÓDIGO:
+──────────
+// AUTENTICACION
+AuthMiddleware::verify();  ← ¿Token existe y es válido?
+
+// AUTORIZACION
+AuthMiddleware::verifyAdmin();  ← ¿Usuario es admin?
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #13: LOS LOGS SON TU MEJOR DEBUG
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+QUÉ HACER CUANDO ALGO NO FUNCIONA:
+─────────────────────────────────────
+1. No adivines
+2. No llores
+3. MIRA LOS LOGS
+
+DÓNDE ESTÁN:
+─────────────
+backend/logs/error_YYYY-MM-DD.log
+
+QUÉ CONTENDRÁN:
+─────────────────
+[2026-02-04 10:30:45] Error: Table 'rutas_seguras.usuarios' doesn't exist
+[2026-02-04 10:35:22] Error: CORS blocked from https://malicious.com
+[2026-02-04 10:40:10] Error: JWT token expired
+
+CÓMO LEER:
+──────────
+1. Abre archivo log más reciente
+2. Lee timestamp y mensaje
+3. Identifica patrón
+4. Busca en documentación
+
+REGISTRAR EVENTOS:
+────────────────
+✅ error_log("Usuario " . $userId . " login exitoso", 0);
+
+IMPORTANTE:
+────────────
+En producción:
+  ✅ Revisa logs regularmente
+  ✅ Configura alertas si hay errores
+  ✅ Haz backup de logs
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #14: TESTING ES NO NEGOCIABLE
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+ANTES DE PUBLICAR:
+───────────────────
+Prueba TODOS estos casos:
+
+AUTENTICACIÓN:
+  ✅ Registrar con datos válidos
+  ✅ Registrar con email duplicado → Error 422
+  ✅ Registrar con password débil → Error 422
+  ✅ Login con credenciales correctas
+  ✅ Login con password incorrecto → Error 401
+  ✅ Login con usuario no existe → Error 401
+  ✅ Obtener perfil con JWT válido
+  ✅ Obtener perfil sin JWT → Error 401
+  ✅ Obtener perfil con JWT expirado → Error 401
+
+RUTAS:
+  ✅ Buscar rutas sin JWT (debe funcionar, público)
+  ✅ Buscar rutas con filtros
+  ✅ Crear ruta como admin
+  ✅ Crear ruta como cliente → Error 403
+  ✅ Obtener sugerencias origen
+  ✅ Obtener sugerencias destino
+
+ERRORES:
+  ✅ JSON inválido → Error 400
+  ✅ Content-Type incorrecto → Error 400
+  ✅ Endpoint no existe → Error 404
+  ✅ BD desconectada → Error 500
+
+SEGURIDAD:
+  ✅ SQL injection intento bloqueado
+  ✅ CORS desde dominio no autorizado bloqueado
+  ✅ Contraseña hasheada en BD (no texto plano)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+VERDAD #15: MANTÉN TODO DOCUMENTADO Y VERSIONADO
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANCIA: ALTA 🟡
+
+VERSIONADO (Git):
+──────────────────
+Cada cambio debe estar registrado:
+
+git add .
+git commit -m "feat: Agregar endpoint crear rutas"
+
+BUENAS PRÁCTICAS:
+  ✅ Commit frecuente (cada feature pequeña)
+  ✅ Mensaje descriptivo
+  ✅ NO commits "Fix", usa "Fix: descripción"
+
+DOCUMENTACIÓN:
+────────────────
+Cada cambio en código debe reflejarse en docs:
+
+Si agregaste endpoint:
+  ✅ Actualiza DOCUMENTACION_COMPLETA.md
+  ✅ Actualiza README.md
+  ✅ Actualiza REACT_API_CONFIG.ts
+
+Si cambias BD:
+  ✅ Actualiza db_schema.sql
+  ✅ Actualiza MAPA_MENTAL.txt
+  ✅ Documenta migración
+
+CHANGELOG:
+──────────
+Mantén registro de cambios:
+  Version 1.0 - 2026-02-04
+    ✅ Autenticación completa
+    ✅ Búsqueda rutas
+    ✅ BD normalizada
+
+  Version 1.1 - 2026-02-11
+    ✅ Recuperar contraseña (agregar)
+    ✅ Login social Google (agregar)
+    ❌ Remover búsqueda avanzada (deprecar)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+RESUMEN: LAS 15 VERDADES MÁS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. 🔴 JWT expira 24h → Usuarios reloguean después
+2. 🔴 JWT_SECRET es llave maestra → Cambiar en producción
+3. 🔴 Contraseña BCRYPT irreversible → No se puede recuperar, solo resetear
+4. 🟡 BD es fuente de verdad → localStorage es solo cache
+5. 🟡 CORS es protección → Configura dominio correcto
+6. 🟡 Validación 4 niveles → Frontend, middleware, lógica, BD
+7. 🔴 Nunca expongas errores → Mensajes genéricos en producción
+8. 🟡 Soft delete preserva datos → Auditoría e integridad
+9. 🟡 Database Singleton → Una conexión para toda app
+10. 🔴 Prepared statements previenen SQL injection → Siempre úsalos
+11. 🟡 Config cambia por ambiente → Desarrollo ≠ Producción
+12. 🟡 Autentica ≠ Autoriza → Ambos necesarios
+13. 🟡 Logs son debug → Revísalos cuando fallos
+14. 🟡 Testing es no negociable → Prueba todo antes de publicar
+15. 🟡 Documentación y versionado → Mantén control de cambios
+
+¡IMPORTANTE: Memoriza estas 15 verdades para ser backend dev profesional! 🚀
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DE VERDADES IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════

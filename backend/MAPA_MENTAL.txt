@@ -1,0 +1,640 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   RUTAS SEGURAS - MAPA MENTAL DEL BACKEND                    ║
+║                         Arquitectura Profesional                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+FLUJO GENERAL DE LA APLICACION
+═══════════════════════════════════════════════════════════════════════════════
+
+                              ┌─────────────────┐
+                              │  FRONTEND REACT │
+                              │   (Netlify)     │
+                              └────────┬────────┘
+                                       │
+                                       │ HTTP/HTTPS
+                                       │
+                    ┌──────────────────▼──────────────────┐
+                    │     RUTAS SEGURAS BACKEND           │
+                    │        (Este Proyecto)               │
+                    └──────────────────┬──────────────────┘
+                                       │
+                         ┌─────────────┴─────────────┐
+                         │                           │
+                    ┌────▼─────┐          ┌─────────▼───┐
+                    │   MySQL  │          │   JWT Cache │
+                    │  Database│          │             │
+                    └──────────┘          └─────────────┘
+
+
+FLUJO DE AUTENTICACION
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario en React
+      │
+      ▼ ingresa credenciales
+┌──────────────────┐
+│ email + password │
+└────────┬─────────┘
+         │
+         ▼ POST /api/auth/register
+┌─────────────────────────────┐
+│ Backend: AuthController     │
+│ 1. Validar datos (email,   │
+│    contraseña, teléfono)   │
+│ 2. Verificar email único    │
+│ 3. Hash contraseña BCRYPT   │
+└────────┬────────────────────┘
+         │
+         ▼ INSERT
+    ┌──────────┐
+    │  MySQL  │
+    └────┬─────┘
+         │
+         ▼
+┌──────────────────────────┐
+│ Generar JWT Token        │
+│ JWTHandler::create()     │
+│ Exp: 24 horas            │
+└────────┬─────────────────┘
+         │
+         ▼ return JSON
+┌─────────────────────────┐
+│ { user, token }         │
+│ localStorage.setItem()  │
+└─────────────────────────┘
+         │
+         ▼ siguientes requests
+┌─────────────────────────────┐
+│ Header: Auth: Bearer <token>│
+│ AuthMiddleware verifica JWT │
+│ ✅ Válido = Procesar       │
+│ ❌ Inválido = Error 401    │
+└─────────────────────────────┘
+
+
+ARQUITECTURA EN CAPAS
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CAPA 1: PRESENTATION (Frontend React)                                       │
+│ Componentes: Login, Register, RouteSearch, Profile                          │
+│ Maneja: UI, validaciones locales, almacenamiento tokens                    │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    HTTP Request
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 2: API ENDPOINTS (backend/api/)                                        │
+│ Archivos: register.php, login.php, search.php, create.php                  │
+│ Función: Enrutamiento y preparación de datos                                │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    Instanciar
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 3: MIDDLEWARE (backend/middleware/)                                    │
+│ AuthMiddleware: Verificar JWT                                               │
+│ RequestMiddleware: Procesar request body                                    │
+│ Función: Validación y seguridad                                             │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    Llamar a
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 4: CONTROLADORES (backend/controllers/)                                │
+│ AuthController: Lógica autenticación                                        │
+│ RouteController: Lógica rutas                                               │
+│ Función: Orquestación de negocio                                            │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    Usar
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 5: MODELOS (backend/models/)                                           │
+│ User: CRUD usuarios                                                         │
+│ Route: CRUD rutas                                                           │
+│ Función: Acceso a datos                                                     │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    Query usando
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 6: DATABASE (backend/config/Database.php)                              │
+│ PDO Connection (Singleton)                                                  │
+│ Prepared Statements                                                         │
+│ Función: Acceso seguro a BD                                                 │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+                    SELECT/INSERT/UPDATE
+                         │
+┌────────────────────────▼────────────────────────────────────────────────────┐
+│ CAPA 7: MYSQL DATABASE                                                      │
+│ 9 tablas normalizadas                                                       │
+│ 20+ índices optimizados                                                     │
+│ Función: Persistencia de datos                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+ESTRUCTURA DE CARPETAS - VISTA ARBOREA
+═══════════════════════════════════════════════════════════════════════════════
+
+backend/
+│
+├── api/                              ← ENDPOINTS REST
+│   ├── auth/
+│   │   ├── register.php .............. POST nuevo usuario
+│   │   ├── login.php ................ POST inicio sesión
+│   │   ├── logout.php ............... POST cierre sesión
+│   │   └── me.php ................... GET obtener perfil
+│   │
+│   └── routes/
+│       ├── search.php ............... GET buscar rutas
+│       ├── create.php ............... POST crear ruta
+│       ├── suggestions-origins.php .. GET sugerencias
+│       └── suggestions-destinations.php
+│
+├── config/                           ← CONFIGURACION
+│   ├── config.php ................... EDITAR PRIMERO
+│   └── Database.php ................. Singleton PDO
+│
+├── controllers/                      ← LOGICA DE NEGOCIO
+│   ├── AuthController.php
+│   │   ├── register() ........... Registrar usuario
+│   │   ├── login() .............. Iniciar sesión
+│   │   ├── logout() ............. Cerrar sesión
+│   │   └── getProfile() ......... Obtener perfil
+│   │
+│   └── RouteController.php
+│       ├── search() ............. Buscar rutas
+│       ├── create() ............. Crear ruta
+│       └── suggestOrigins() ..... Sugerencias
+│
+├── middleware/                       ← PROTECCION Y VALIDACION
+│   ├── AuthMiddleware.php .......... Verificar JWT
+│   └── RequestMiddleware.php ....... Procesar requests
+│
+├── models/                           ← ACCESO A DATOS
+│   ├── User.php .................... CRUD usuarios
+│   │   ├── create() ........... Insertar
+│   │   ├── getById() .......... Obtener por ID
+│   │   ├── getByEmail() ....... Obtener por email
+│   │   ├── update() ........... Actualizar
+│   │   ├── delete() ........... Eliminar (soft)
+│   │   └── emailExists() ...... Verificar único
+│   │
+│   └── Route.php ................... CRUD rutas
+│       ├── search() ........... Buscar
+│       ├── getById() .......... Obtener
+│       ├── create() ........... Crear
+│       ├── update() ........... Actualizar
+│       └── delete() ........... Eliminar
+│
+├── utils/                            ← HELPERS
+│   ├── Response.php
+│   │   ├── success() ........... Respuesta OK
+│   │   ├── error() ............ Respuesta error
+│   │   ├── unauthorized() ..... Error 401
+│   │   ├── forbidden() ........ Error 403
+│   │   └── validationError()... Error 422
+│   │
+│   ├── Validator.php
+│   │   ├── validateEmail() .... Email
+│   │   ├── validatePassword().. Contraseña
+│   │   ├── validatePhone() .... Teléfono
+│   │   ├── sanitize() ........ Limpiar datos
+│   │   └── validateUserRegistration() - Completo
+│   │
+│   └── JWTHandler.php
+│       ├── create() ........... Generar JWT
+│       ├── verify() ........... Verificar JWT
+│       ├── getTokenFromHeader() - Del header
+│       └── [Métodos internos]
+│
+├── logs/ ............................. Logs de error
+├── uploads/ .......................... Archivos subidos
+├── .htaccess ......................... Rewrite rules
+├── db_schema.sql ..................... BD MySQL
+│
+└── DOCUMENTACION/
+    ├── INDEX.md ..................... Índice maestro
+    ├── README.md .................... Quick start
+    ├── DOCUMENTACION_COMPLETA.md ... Guía técnica
+    ├── DEPLOYMENT_GUIA_RAPIDA.md .. Deployment
+    ├── REACT_API_CONFIG.ts ......... API para React
+    ├── EJEMPLOS_REACT.tsx .......... Componentes
+    ├── CHECKLIST.md ................ Plan
+    ├── RESUMEN_EJECUTIVO.md ....... Resumen
+    ├── MAPA_MENTAL.txt ............ Este archivo
+    └── ARCHIVO_LEGIBLE.txt ........ Legible
+
+
+FLUJO DE BUSQUEDA DE RUTAS
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario busca: "Centro" → "Norte"
+       │
+       ▼ GET /api/routes/search?origin=Centro&destination=Norte
+       
+┌─────────────────────────────────┐
+│ RequestMiddleware               │
+│ getParam('origin')              │
+│ getParam('destination')         │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│ RouteController::search()       │
+│ 1. Validator::validateRouteSearch│
+│    - Valida que no estén vacíos │
+│    - Valida longitud (min 2)    │
+│ 2. Llama a Route model          │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│ Route::search()                 │
+│ SELECT * FROM rutas WHERE       │
+│ (origen LIKE '%Centro%'         │
+│ OR destino LIKE '%Centro%')     │
+│ AND activa = 1                  │
+└────────────┬────────────────────┘
+             │
+             ▼
+    ┌────────────────┐
+    │ MySQL Database │
+    │ Full-text      │
+    │ search         │
+    └────────┬───────┘
+             │
+             ▼
+     ┌──────────────┐
+     │ 3 rutas      │
+     │ encontradas  │
+     └────────┬─────┘
+              │
+              ▼
+┌──────────────────────────────────┐
+│ Response::success()              │
+│ Formato JSON:                    │
+│ {                                │
+│   success: true,                 │
+│   data: {                        │
+│     routes: [...],               │
+│     pagination: {...},           │
+│     query: {...}                 │
+│   }                              │
+│ }                                │
+└──────────────────────────────────┘
+             │
+             ▼
+     Frontend React
+     renderiza resultados
+
+
+TABLA DE SEGURIDAD EN CAPAS
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 1: CLIENTE (Frontend React)                                           │
+│ - HTTPS obligatorio                                                         │
+│ - Token en localStorage (httpOnly en cookies más seguro)                   │
+│ - Validaciones locales antes de enviar                                     │
+│ - CSP (Content Security Policy)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 2: TRANSPORTÉ (HTTP/HTTPS)                                           │
+│ - HTTPS obligatorio (TLS 1.2+)                                             │
+│ - CORS validado (solo Netlify)                                             │
+│ - Headers de seguridad                                                      │
+│ - No exponer headers sensibles                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 3: API (RequestMiddleware)                                            │
+│ - Parseo JSON validado                                                      │
+│ - Extracción del token del header                                          │
+│ - Validación de formato Bearer                                             │
+│ - Sanitización básica                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 4: AUTENTICACION (AuthMiddleware)                                     │
+│ - Verificar JWT válido                                                      │
+│ - Verificar no expirado                                                     │
+│ - Extraer userData                                                          │
+│ - Error 401 si falla                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 5: AUTORIZACION (Controladores)                                       │
+│ - Verificar rol (admin, conductor, cliente)                                │
+│ - Verificar propiedad de recurso                                           │
+│ - Error 403 si no autorizado                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 6: VALIDACION (Validator)                                             │
+│ - Email válido (RFC 5322)                                                  │
+│ - Contraseña fuerte (reglas)                                               │
+│ - Teléfono válido                                                          │
+│ - Longitud y tipo de datos                                                 │
+│ - Sanitización htmlspecialchars()                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NIVEL 7: BASE DE DATOS (PDO Prepared Statements)                           │
+│ - Parámetros bindeados (sin concatenación)                                 │
+│ - Protección SQL injection                                                  │
+│ - Transactions para integridad                                              │
+│ - Hashing BCRYPT para contraseñas                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+TABLAS DE BASE DE DATOS - RELACIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+                         ┌─────────────┐
+                         │  usuarios   │ (1)
+                         ├─────────────┤
+                         │ id (PK)     │
+                         │ nombre      │
+                         │ email (UQ)  │
+                         │ contraseña  │
+                         │ rol         │
+                         │ telefono    │
+                         └──────┬──────┘
+                                │
+                                │ (1:N)
+                  ┌─────────────┼──────────────┬─────────────────┐
+                  │             │              │                 │
+                  ▼ (1:N)       ▼ (1:N)        ▼ (1:N)           ▼ (1:N)
+            ┌──────────┐  ┌──────────────┐ ┌────────────┐  ┌──────────────┐
+            │  rutas   │  │  reservas    │ │  unidades  │  │historial_    │
+            ├──────────┤  ├──────────────┤ ├────────────┤  │busquedas     │
+            │ id       │  │ id           │ │ id         │  ├──────────────┤
+            │ titulo   │  │ usuario_id   │ │ placa      │  │ id           │
+            │ origen   │  │ ruta_id      │ │ modelo     │  │ usuario_id   │
+            │ destino  │  │ numero_boleto│ │ conductor  │  │ origen       │
+            │ usuario  │  │ estado       │ │ estado     │  │ destino      │
+            └──────────┘  └──────────────┘ └────────────┘  │ ruta_id      │
+                  │            │                             └──────────────┘
+                  └────────────┴─────────────────────────────────┘
+                         relaciones FK
+
+
+FLUJO DE UNA PETICION COMPLETA
+═══════════════════════════════════════════════════════════════════════════════
+
+Ejemplo: Búsqueda de rutas
+
+PASO 1: Cliente (React)
+────────────────────────
+fetch('https://backend.com/api/routes/search?origin=Centro&destination=Norte')
+
+PASO 2: Servidor HTTP
+──────────────────────
+GET /api/routes/search?origin=Centro&destination=Norte
+Host: backend.com
+Accept: application/json
+Connection: keep-alive
+
+PASO 3: .htaccess (Apache Rewrite)
+──────────────────────────────────
+Reescribe URL, pasa a PHP
+
+PASO 4: API Endpoint (search.php)
+─────────────────────────────────
+Incluye archivos necesarios
+Instancia RouteController
+
+PASO 5: RequestMiddleware
+─────────────────────────
+getParam('origin')
+getParam('destination')
+sanitize()
+
+PASO 6: RouteController::search()
+────────────────────────────────
+Validator::validateRouteSearch()
+  - Valida origen (requerido, min 2)
+  - Valida destino (requerido, min 2)
+Si error: Response::validationError()
+Si OK: Continúa
+
+PASO 7: Route Model::search()
+─────────────────────────────
+Genera query SQL:
+  SELECT * FROM rutas WHERE
+  (origen LIKE '%Centro%' OR destino LIKE '%Centro%')
+  AND activa = 1
+  ORDER BY fecha_creacion DESC
+  LIMIT 20 OFFSET 0
+
+PASO 8: Database::query()
+────────────────────────
+$stmt = $pdo->prepare($sql)
+$stmt->execute([':origin' => '%Centro%', ':destination' => '%Norte%'])
+Devuelve array de resultados
+
+PASO 9: Response::success()
+──────────────────────────
+http_response_code(200)
+json_encode($data)
+
+PASO 10: Cliente recibe
+──────────────────────
+{
+  "success": true,
+  "message": "Búsqueda realizada exitosamente",
+  "data": {
+    "routes": [
+      {
+        "id": 1,
+        "titulo": "Ruta Centro - Norte",
+        "origen": "Terminal Centro",
+        "destino": "Terminal Norte",
+        ...
+      },
+      ...
+    ],
+    "pagination": {...},
+    "query": {...}
+  },
+  "timestamp": "2026-02-04 10:30:45"
+}
+
+PASO 11: React renderiza
+────────────────────────
+map(routes) → componentes UI
+Muestra lista de rutas
+
+
+MATRIZ DE AUTENTICACION vs AUTORIZACION
+═══════════════════════════════════════════════════════════════════════════════
+
+                    AUTENTICADO    NO AUTENTICADO
+                    ┌────────────┐  ┌────────────┐
+                    │   ✅ SI    │  │   ❌ NO    │
+                    └────────────┘  └────────────┘
+
+ENDPOINT PUBLICO
+(ej: /routes/search)
+- No requiere JWT
+- ✅ SI → Permitido
+- ❌ NO → Permitido
+                    RESULTADO: Funciona igual
+
+ENDPOINT PROTEGIDO
+(ej: /auth/me)
+- Requiere JWT
+- ✅ SI → Verificar validez
+  ├─ Válido + no expirado → Permitido
+  └─ Inválido/expirado → Error 401
+- ❌ NO → Error 401
+
+ENDPOINT ADMIN
+(ej: /routes/create)
+- Requiere JWT + rol admin
+- ✅ SI + ADMIN → Permitido
+- ✅ SI + CLIENTE → Error 403 (Forbidden)
+- ❌ NO → Error 401 (Unauthorized)
+
+
+CICLO DE VIDA DE UN JWT
+═══════════════════════════════════════════════════════════════════════════════
+
+Generación (Login/Register)
+──────────────────────────
+1. User clicks login button
+2. React: fetch /api/auth/login con email + pass
+3. PHP verifica credenciales ✅
+4. JWTHandler::create(['id'=>1, 'email'=>'user@mail.com', 'role'=>'cliente'])
+5. Genera token:
+   Header.Payload.Signature
+   eyJhbGci....eyJ1c2VyIjo...SIGNATURE
+6. Token devuelto en JSON
+7. React: localStorage.setItem('token', token)
+
+Uso (Requests protegidos)
+────────────────────────
+1. React: fetch(/api/auth/me, {
+     headers: { Authorization: 'Bearer eyJ...' }
+   })
+2. PHP: getTokenFromHeader() → 'eyJ...'
+3. JWTHandler::verify('eyJ...')
+   ├─ Split en 3 partes
+   ├─ Verifica firma
+   ├─ Verifica expiración
+   ├─ Decodifica payload
+   └─ Devuelve userData
+4. Si OK → userData disponible en controlador
+5. Si Error → Response::unauthorized()
+
+Expiración
+────────────
+1. JWT tiene exp: tiempo en unix timestamp
+   exp = current_time + 86400 (24 horas)
+2. Al verificar, compara: if (exp < time()) → Expirado
+3. Si expirado → Error 401
+4. Frontend recibe 401 → Limpia localStorage
+5. Redirige a /login
+
+Logout
+──────
+1. User clicks logout
+2. React: fetch /api/auth/logout con JWT
+3. Backend registra logout (opcional)
+4. Frontend: localStorage.removeItem('token')
+5. Ya no hay Authorization header
+6. Siguientes requests → Sin JWT → Error 401
+
+
+MAPA DE DECISIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─ REQUEST ─┐
+│  Valida   │
+└─────┬─────┘
+      │
+      ▼─── ¿JSON válido? ───NO──▶ Error 400 (Bad Request)
+      │
+      │─── SÍ
+      ▼
+      ├─ ¿Endpoint existe?
+      │  ├─ NO ──▶ Error 404 (Not Found)
+      │  │
+      │  ▼─ SÍ
+      │  ├─ ¿Requiere autenticación?
+      │  │  ├─ NO ──▶ Procesar públicamente
+      │  │  │
+      │  │  ▼─ SÍ
+      │  │  ├─ ¿Tiene JWT?
+      │  │  │  ├─ NO ──▶ Error 401 (Unauthorized)
+      │  │  │  │
+      │  │  │  ▼─ SÍ
+      │  │  │  ├─ ¿JWT válido?
+      │  │  │  │  ├─ NO ──▶ Error 401 (Unauthorized)
+      │  │  │  │  │
+      │  │  │  │  ▼─ SÍ
+      │  │  │  │  ├─ ¿Requiere admin?
+      │  │  │  │  │  ├─ SÍ y no admin ──▶ Error 403 (Forbidden)
+      │  │  │  │  │  │
+      │  │  │  │  │  ▼─ OK
+      │  │  │  │  │  ├─ Validar datos de entrada
+      │  │  │  │  │  │  ├─ Error ──▶ Error 422 (Validation)
+      │  │  │  │  │  │  │
+      │  │  │  │  │  │  ▼─ OK
+      │  │  │  │  │  │  ├─ Procesar en BD
+      │  │  │  │  │  │  │  ├─ Error ──▶ Error 500 (Server Error)
+      │  │  │  │  │  │  │  │
+      │  │  │  │  │  │  │  ▼─ OK
+      │  │  │  │  │  │  │  └──▶ Response 200/201 (Success)
+      │  │  │  │  │  │  │
+      │  │  │  │  │  │  └─ Acceso denegado ──▶ Error 403
+
+
+MODELO DATOS - EJEMPLO USUARIO
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario en BD:
+┌──────────────────────────────────┐
+│ id: 5                            │
+│ nombre: "Juan García"            │
+│ email: "juan@email.com"          │
+│ contrasena: "$2y$12$mIVVPPMR..." │ (BCRYPT hash)
+│ rol: "cliente"                   │
+│ telefono: "+57 3001234567"       │
+│ activo: 1                        │
+│ fecha_creacion: "2026-02-04"     │
+│ fecha_actualizacion: "2026-02-04"│
+└──────────────────────────────────┘
+
+JWT Token que se genera:
+┌────────────────────────────────────────────┐
+│ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.    │
+│ eyJpc3MiOiJodHRwczovL2JhY2tlbmQuY29tIiwi│
+│ aWF0IjoxNjM4MzcyNjQ1LCJleHAiOjE2MzgzNzY │
+│ V1NzVbMTZkYXRhIjp7ImlkIjo1LCJuYW1lIjoi │
+│ SnVhbiIsImVtYWlsIjoianVhbkBlbWFpbC5jb21i │
+│ ,"cm9sZSI6ImNsaWVudGUifX0.                │
+│ S0m5XjQDHJ3ZFaB2c8kD9mL4pR6nV2xY1zE7wK9 │
+└────────────────────────────────────────────┘
+
+localStorage (React):
+┌────────────────────────────────────────────┐
+│ token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX..."│
+│ user: {                                    │
+│   id: 5,                                   │
+│   name: "Juan García",                     │
+│   email: "juan@email.com",                 │
+│   role: "cliente",                         │
+│   phone: "+57 3001234567"                  │
+│ }                                          │
+└────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DEL MAPA MENTAL
+═══════════════════════════════════════════════════════════════════════════════

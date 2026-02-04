@@ -1,0 +1,714 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              RUTAS SEGURAS - DIAGRAMAS DE FLUJO DETALLADOS                    ║
+║                        Visualización Completa del Sistema                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 1: FLUJO COMPLETO DE REGISTRO
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ USUARIO FINAL (Frontend React)                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Form Registration Component                                                │
+│  ┌─────────────────────┐                                                   │
+│  │ Nombre: Juan García │  ◄─── Input de usuario                           │
+│  │ Email: juan@...     │                                                   │
+│  │ Contraseña: ****    │                                                   │
+│  │ Teléfono: +57...    │                                                   │
+│  └──────────┬──────────┘                                                   │
+│             │                                                              │
+│             ▼ user.name = "Juan García"                                    │
+│             user.email = "juan@mail.com"                                   │
+│             user.password = "MiPass123!"                                   │
+│             user.phone = "+57 300..."                                      │
+│             │                                                              │
+│             ▼ Validación LOCAL (opcional)                                  │
+│             ├─ ¿Email válido? ─NO─▶ Mostrar error "Email inválido"       │
+│             ├─ ¿Contraseña fuerte? ─NO─▶ "Min 8 caracteres..."           │
+│             └─ OK → Continuar                                              │
+│                                                                             │
+│             ▼                                                              │
+│  fetch('https://backend.com/api/auth/register', {                         │
+│    method: 'POST',                                                         │
+│    headers: {                                                              │
+│      'Content-Type': 'application/json',                                   │
+│      'Accept': 'application/json'                                          │
+│    },                                                                       │
+│    body: JSON.stringify({                                                  │
+│      nombre: "Juan García",                                                │
+│      email: "juan@mail.com",                                               │
+│      contraseña: "MiPass123!",                                             │
+│      telefono: "+57 300..."                                                │
+│    })                                                                       │
+│  })                                                                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                        ▼ HTTP POST REQUEST ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SERVIDOR WEB (Apache)                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ .htaccess captura: POST /api/auth/register                                 │
+│ ├─ Verifica CORS:                                                          │
+│ │  ├─ Origin: https://nombreapp.netlify.app ✅ OK                          │
+│ │  ├─ Method: POST ✅ OK                                                    │
+│ │  └─ Reescribe a PHP                                                      │
+│ │                                                                           │
+│ ▼ Reescribe internamente a: /api/auth/register.php                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ API ENDPOINT (api/auth/register.php)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ <?php                                                                       │
+│ require_once '../../config/config.php';                                    │
+│ require_once '../../middleware/RequestMiddleware.php';                     │
+│ require_once '../../controllers/AuthController.php';                       │
+│                                                                             │
+│ $requestMiddleware = new RequestMiddleware();                              │
+│ $body = $requestMiddleware->getJsonBody();                                 │
+│                                                                             │
+│ $authController = new AuthController();                                    │
+│ $authController->register(                                                 │
+│   $body['nombre'] ?? null,                                                 │
+│   $body['email'] ?? null,                                                  │
+│   $body['contraseña'] ?? null,                                             │
+│   $body['telefono'] ?? null                                                │
+│ );                                                                          │
+│ ?>                                                                          │
+│                                                                             │
+│ Extrae: $nombre = "Juan García"                                            │
+│         $email = "juan@mail.com"                                           │
+│         $password = "MiPass123!"                                           │
+│         $phone = "+57 300..."                                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                    ▼ Instancia ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CONTROLADOR (controllers/AuthController.php → register method)              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ public function register($nombre, $email, $password, $phone) {             │
+│                                                                             │
+│   PASO 1: VALIDAR ENTRADA                                                  │
+│   ──────────────────────                                                   │
+│   Validator::validateUserRegistration([                                    │
+│     'nombre' => $nombre,                                                   │
+│     'email' => $email,                                                     │
+│     'password' => $password,                                               │
+│     'phone' => $phone                                                      │
+│   ])                                                                        │
+│                                                                             │
+│   ├─ Email valida? "juan@mail.com"                                        │
+│   │  └─ filter_var($email, FILTER_VALIDATE_EMAIL) → ✅ OK                 │
+│   │                                                                         │
+│   ├─ Contraseña fuerte?                                                   │
+│   │  └─ Regex: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$            │
+│   │     "MiPass123!" → ✅ OK                                               │
+│   │     (8+ chars, uppercase, lowercase, number)                           │
+│   │                                                                         │
+│   ├─ Teléfono valido? "+57 300..."                                         │
+│   │  └─ Regex: ^\+?[0-9\s\-\(\)]{10,}$  → ✅ OK                          │
+│   │                                                                         │
+│   └─ Si error → return Response::validationError(...)                      │
+│      Si OK → Continuar                                                     │
+│                                                                             │
+│   PASO 2: VERIFICAR EMAIL UNICO                                            │
+│   ─────────────────────────────                                            │
+│   User::emailExists("juan@mail.com")                                       │
+│   └─ SELECT COUNT(*) FROM usuarios WHERE email = ?                         │
+│      └─ Resultado: 0 (no existe) ✅ OK                                     │
+│         Si = 0: Email es único                                             │
+│         Si > 0: Email ya registrado → Error 422                            │
+│                                                                             │
+│   PASO 3: HASHEAR CONTRASEÑA                                               │
+│   ──────────────────────────                                               │
+│   $hashedPassword = password_hash(                                         │
+│     "MiPass123!",                                                          │
+│     PASSWORD_BCRYPT,                                                       │
+│     ['cost' => 12]  ◄─── IMPORTANTE: Cost 12 = ~1 segundo                │
+│   )                                                                         │
+│   Resultado: "$2y$12$mIVVPPMR8PJNvHjN5uC8jO.NjYQmzJVCsKzQ0..."            │
+│   (Nunca se guardará la contraseña en texto plano)                         │
+│                                                                             │
+│   PASO 4: CREAR USUARIO EN BD                                              │
+│   ────────────────────────────                                             │
+│   User::create([                                                           │
+│     'nombre' => "Juan García",                                             │
+│     'email' => "juan@mail.com",                                            │
+│     'contraseña' => "$2y$12$mIVVPPMR...",                                  │
+│     'telefono' => "+57 300...",                                            │
+│     'rol' => 'cliente'  ◄─── Por defecto cliente                          │
+│   ])                                                                        │
+│                                                                             │
+│   INSERT INTO usuarios (                                                   │
+│     nombre, email, contraseña, telefono, rol, activo,                     │
+│     fecha_creacion, fecha_actualizacion                                    │
+│   ) VALUES (                                                               │
+│     "Juan García",                                                         │
+│     "juan@mail.com",                                                       │
+│     "$2y$12$mIVVPPMR...",                                                  │
+│     "+57 300...",                                                          │
+│     "cliente",                                                              │
+│     1,                                                                      │
+│     NOW(),                                                                  │
+│     NOW()                                                                  │
+│   )                                                                         │
+│   Result: user_id = 42 (asignado automáticamente)                          │
+│                                                                             │
+│   PASO 5: GENERAR JWT TOKEN                                                │
+│   ────────────────────────                                                 │
+│   $token = JWTHandler::create([                                            │
+│     'id' => 42,                                                             │
+│     'nombre' => "Juan García",                                             │
+│     'email' => "juan@mail.com",                                            │
+│     'rol' => "cliente"                                                     │
+│   ])                                                                        │
+│                                                                             │
+│   ├─ Header:   {"alg":"HS256","typ":"JWT"}                                 │
+│   │                                                                         │
+│   ├─ Payload: {                                                            │
+│   │   "iss":"https://backend.com",                                         │
+│   │   "iat":1675000000,                                                    │
+│   │   "exp":1675086400,  ◄─── +24 horas                                   │
+│   │   "data":{                                                             │
+│   │     "id":42,                                                           │
+│   │     "nombre":"Juan García",                                            │
+│   │     "email":"juan@mail.com",                                           │
+│   │     "rol":"cliente"                                                    │
+│   │   }                                                                     │
+│   │ }                                                                       │
+│   │                                                                         │
+│   └─ Signature: HMAC-SHA256(                                               │
+│      base64($header) + "." + base64($payload),                             │
+│      $secret  ◄─── De config.php JWT_SECRET                              │
+│    )                                                                        │
+│                                                                             │
+│    Resultado token:                                                        │
+│    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.                                   │
+│    eyJpc3MiOiJodHRwczovL2JhY2tlbmQuY29tIiwia...                           │
+│    S0m5XjQDHJ3ZFaB2c8kD9mL4pR6nV2xY1zE7wK9                                 │
+│                                                                             │
+│   PASO 6: DEVOLVER RESPUESTA                                               │
+│   ──────────────────────────                                               │
+│   return Response::success(                                                │
+│     [                                                                       │
+│       'user' => [                                                          │
+│         'id' => 42,                                                        │
+│         'nombre' => "Juan García",                                         │
+│         'email' => "juan@mail.com",                                        │
+│         'telefono' => "+57 300...",                                        │
+│         'rol' => "cliente"                                                 │
+│       ],                                                                    │
+│       'token' => "eyJhbGc...",                                              │
+│       'message' => "Usuario registrado exitosamente"                       │
+│     ],                                                                      │
+│     "Usuario registrado exitosamente",                                     │
+│     201  ◄─── HTTP 201 Created                                             │
+│   );                                                                        │
+│ }                                                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                    ▼ Query Database ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MODELO (models/User.php)                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ public function create($data) {                                            │
+│   $db = Database::getInstance();                                           │
+│                                                                             │
+│   $sql = "INSERT INTO usuarios                                             │
+│     (nombre, email, contraseña, telefono, rol, activo,                    │
+│      fecha_creacion, fecha_actualizacion)                                 │
+│    VALUES                                                                   │
+│     (:nombre, :email, :contraseña, :telefono, :rol, 1,                    │
+│      NOW(), NOW())";                                                       │
+│                                                                             │
+│   return $db->execute($sql, [                                              │
+│     ':nombre' => $data['nombre'],                                          │
+│     ':email' => $data['email'],                                            │
+│     ':contraseña' => $data['contraseña'],                                  │
+│     ':telefono' => $data['telefono'],                                      │
+│     ':rol' => $data['rol'] ?? 'cliente'                                    │
+│   ]);                                                                       │
+│ }                                                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                    ▼ Connection ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATABASE LAYER (config/Database.php)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ class Database {                                                           │
+│   private static $instance = null;                                         │
+│   private $pdo;                                                            │
+│                                                                             │
+│   public static function getInstance() {                                   │
+│     if (self::$instance === null) {                                        │
+│       self::$instance = new Database();                                    │
+│     }                                                                       │
+│     return self::$instance;                                                │
+│   }                                                                         │
+│                                                                             │
+│   private function __construct() {                                         │
+│     $this->pdo = new PDO(                                                  │
+│       "mysql:host=localhost;port=3306;dbname=rutas_seguras;charset=utf8mb4",
+│       "root",                                                              │
+│       "",                                                                  │
+│       [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]                        │
+│     );                                                                      │
+│   }                                                                         │
+│                                                                             │
+│   public function execute($sql, $params) {                                 │
+│     $stmt = $this->pdo->prepare($sql);  ◄─── PREPARED STATEMENT            │
+│     $stmt->execute($params);             ◄─── PARÁMETROS SEGUROS           │
+│     return $this->pdo->lastInsertId();                                     │
+│   }                                                                         │
+│ }                                                                           │
+│                                                                             │
+│ ✅ VENTAJAS:                                                                │
+│ - PDO::prepare() → Evita SQL injection                                     │
+│ - Los parámetros se envían separados de la query                          │
+│ - El motor de BD sabe que :nombre es un parámetro, NO código              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                    ▼ MySQL INSERT ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MYSQL DATABASE                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Tabla: usuarios                                                            │
+│ ┌────┬──────────────┬─────────────────┬────────────────────┬────────────┬──│
+│ │id  │nombre        │email            │contraseña          │rol    │ ... │
+│ ├────┼──────────────┼─────────────────┼────────────────────┼────────────┤  │
+│ │1   │Admin         │admin@mail.com   │$2y$12$...          │admin  │ ... │
+│ │2   │María López   │maria@mail.com   │$2y$12$...          │conductor
+│ │... │...           │...              │...                 │...        │  │
+│ │42  │Juan García   │juan@mail.com    │$2y$12$mIVVPPMR...│cliente│ ... │ ◄── NUEVO
+│ └────┴──────────────┴─────────────────┴────────────────────┴────────────┘  │
+│                                                                             │
+│ Índice UNIQUE en email → Garantiza email único                            │
+│ Índice en rol → Búsquedas rápidas por rol                                 │
+│ Constraint: activo INT(1) DEFAULT 1                                       │
+│                                                                             │
+│ ✅ Transacción completada exitosamente                                     │
+│ lastInsertId() retorna: 42                                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                  ▼ JSON Response ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ HTTP RESPONSE 201 CREATED                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ HTTP/1.1 201 Created                                                       │
+│ Content-Type: application/json                                             │
+│ Access-Control-Allow-Origin: https://nombreapp.netlify.app                │
+│ Cache-Control: no-store, no-cache, must-revalidate                        │
+│                                                                             │
+│ {                                                                           │
+│   "success": true,                                                         │
+│   "message": "Usuario registrado exitosamente",                            │
+│   "data": {                                                                │
+│     "user": {                                                              │
+│       "id": 42,                                                            │
+│       "nombre": "Juan García",                                             │
+│       "email": "juan@mail.com",                                            │
+│       "telefono": "+57 3001234567",                                        │
+│       "rol": "cliente"                                                     │
+│     },                                                                      │
+│     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczov..." │
+│   },                                                                        │
+│   "timestamp": "2026-02-04 10:30:45"                                       │
+│ }                                                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                  ▼ LocalStorage ▼
+                                   │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FRONTEND REACT (localStorage)                                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Frontend recibe response JSON                                              │
+│                                                                             │
+│ if (response.success) {                                                    │
+│   // Guardar token                                                         │
+│   localStorage.setItem('token', response.data.token)                       │
+│                                                                             │
+│   // Guardar datos usuario                                                │
+│   localStorage.setItem('user', JSON.stringify(response.data.user))         │
+│                                                                             │
+│   // Actualizar contexto de autenticación                                  │
+│   authContext.setUser(response.data.user)                                 │
+│   authContext.setToken(response.data.token)                               │
+│                                                                             │
+│   // Redirigir a dashboard                                                 │
+│   navigate('/dashboard')                                                   │
+│ }                                                                           │
+│                                                                             │
+│ ESTADO EN NAVEGADOR:                                                       │
+│ localStorage = {                                                           │
+│   'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczov...',
+│   'user': {                                                                │
+│     'id': 42,                                                              │
+│     'nombre': 'Juan García',                                               │
+│     'email': 'juan@mail.com',                                              │
+│     'telefono': '+57 3001234567',                                          │
+│     'rol': 'cliente'                                                       │
+│   }                                                                         │
+│ }                                                                           │
+│                                                                             │
+│ ✅ REGISTRO COMPLETADO EXITOSAMENTE                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 2: FLUJO DE LOGIN (Más corto, usa datos existentes)
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario ingresa credenciales
+        │
+        ▼ POST /api/auth/login
+    email: "juan@mail.com"
+  password: "MiPass123!"
+        │
+        ▼ RequestMiddleware extrae
+        │
+        ▼ AuthController::login()
+    1. Validar entrada (no vacía)
+    2. User::getByEmail("juan@mail.com")
+        └─ SELECT * WHERE email = ?
+           Retorna: {id: 42, contraseña: "$2y$12$..."}
+    3. password_verify("MiPass123!", "$2y$12$...")
+        └─ Compara pass con hash → TRUE ✅
+    4. JWTHandler::create({id: 42, ...})
+        └─ Genera token
+    5. Response::success({user, token}, "Login exitoso", 200)
+        │
+        ▼ localStorage.setItem('token', token)
+        │
+        ▼ Redirige a /dashboard
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 3: FLUJO DE BUSQUEDA DE RUTAS (Request protegido)
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario busca rutas
+        │
+        ▼ GET /api/routes/search?origin=Centro&destination=Norte
+           Header: Authorization: Bearer eyJ...
+        │
+        ▼ RequestMiddleware
+    getParam('origin') → "Centro"
+  getParam('destination') → "Norte"
+        │
+        ▼ NO requiere JWT (buscar es público)
+        │
+        ▼ RouteController::search()
+    1. Validator::validateRouteSearch()
+        ├─ origin no vacío ✅
+        ├─ destination no vacío ✅
+        └─ Longitud mínima 2 ✅
+    2. Route::search("Centro", "Norte")
+        └─ SQL: SELECT * FROM rutas WHERE
+                (origen LIKE '%Centro%' OR destino LIKE '%Centro%')
+             OR (origen LIKE '%Norte%' OR destino LIKE '%Norte%')
+           AND activa = 1
+           ORDER BY fecha_creacion DESC
+           LIMIT 20 OFFSET 0
+        └─ MySQL retorna 3 rutas
+    3. Response::success(routes, "Búsqueda ok", 200)
+        │
+        ▼ Frontend renderiza resultados
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 4: ERROR - FALTA JWT EN REQUEST PROTEGIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario hace POST /api/auth/me (requiere JWT)
+        │
+        ▼ NO envía Authorization header
+        │
+        ▼ AuthMiddleware::verify()
+    1. getTokenFromHeader()
+        └─ Header: Authorization no encontrado
+        └─ return null
+    2. if (!$token) {
+        Response::unauthorized("Token no proporcionado", 401)
+       }
+        │
+        ▼ HTTP 401 Unauthorized
+    {
+      "success": false,
+      "message": "Token no proporcionado",
+      "error": "Unauthorized"
+    }
+        │
+        ▼ Frontend recibe 401
+    1. localStorage.removeItem('token')
+    2. Redirige a /login
+    3. Muestra "Sesión expirada, por favor inicia sesión nuevamente"
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 5: ERROR - JWT EXPIRADO
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario hace request con token antiguo
+        │
+        ▼ GET /api/auth/me
+    Header: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ...
+        │
+        ▼ AuthMiddleware::verify()
+    1. getTokenFromHeader() → token extraído ✅
+    2. JWTHandler::verify(token)
+        ├─ Decodifica header
+        ├─ Decodifica payload
+        ├─ Verifica firma ✅
+        ├─ Verifica exp:
+        │  if (exp < time())  ← Token generado hace 26 horas
+        │  exp = 1675086400
+        │  now = 1675176000
+        │  exp < now = TRUE ❌ EXPIRADO
+        └─ throw new Exception("Token expirado")
+    3. catch(Exception) {
+        Response::unauthorized("Token expirado", 401)
+       }
+        │
+        ▼ HTTP 401 Unauthorized
+    {
+      "success": false,
+      "message": "Token expirado",
+      "error": "Unauthorized"
+    }
+        │
+        ▼ Frontend recibe 401
+    1. localStorage.removeItem('token')
+    2. Redirige a /login
+    3. Usuario inicia sesión nuevamente → obtiene nuevo token
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 6: ERROR - EMAIL YA REGISTRADO (Validación BD)
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario intenta registrar con email existente
+        │
+        ▼ POST /api/auth/register
+    email: "juan@mail.com"  ← YA EXISTE EN BD
+        │
+        ▼ RequestMiddleware extrae datos
+        │
+        ▼ AuthController::register()
+    1. Validator::validateUserRegistration() ✅
+    2. User::emailExists("juan@mail.com")
+        └─ SELECT COUNT(*) FROM usuarios WHERE email = ?
+           Result: 1  ← EMAIL YA EXISTE
+    3. if (User::emailExists($email)) {
+        Response::validationError(['email' => 'Email ya registrado'])
+       }
+        │
+        ▼ HTTP 422 Unprocessable Entity
+    {
+      "success": false,
+      "message": "Errores de validación",
+      "errors": {
+        "email": "Este email ya está registrado en el sistema"
+      }
+    }
+        │
+        ▼ Frontend recibe 422
+    1. Extrae errores del JSON
+    2. Muestra en form: "Este email ya está registrado"
+    3. Usuario intenta con otro email
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 7: ACCESO DENEGADO - NO ES ADMIN
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario cliente intenta crear ruta (solo admin puede)
+        │
+        ▼ POST /api/routes/create
+    Header: Authorization: Bearer <token_cliente>
+    Body: {titulo: "Nueva ruta", origen: "A", destino: "B"}
+        │
+        ▼ AuthMiddleware::verify()
+    1. Token válido y no expirado ✅
+    2. userData.rol = "cliente"
+        │
+        ▼ RouteController::create()
+    1. AuthMiddleware::verifyAdmin()
+        if (userData.rol !== 'admin') {
+            Response::forbidden("No eres administrador")
+        }
+        │
+        ▼ HTTP 403 Forbidden
+    {
+      "success": false,
+      "message": "No tienes permisos para realizar esta acción",
+      "error": "Forbidden"
+    }
+        │
+        ▼ Frontend recibe 403
+    1. Muestra notificación: "No tienes permisos"
+    2. Oculta botón crear ruta para usuarios cliente
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 8: VALIDACION - CONTRASEÑA DEBIL
+═══════════════════════════════════════════════════════════════════════════════
+
+Usuario intenta registrar con password corta
+        │
+        ▼ POST /api/auth/register
+    password: "Hola"  ← DÉBIL
+        │
+        ▼ AuthController::register()
+    1. Validator::validateUserRegistration()
+        ├─ validatePassword("Hola")
+        │  Regex: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$
+        │  Verifica:
+        │  ├─ (?=.*[a-z]) = lowercase ✅ (o)
+        │  ├─ (?=.*[A-Z]) = uppercase ✅ (H)
+        │  ├─ (?=.*\d) = digit ❌ NO HAY NÚMERO
+        │  ├─ [a-zA-Z\d]{8,} = min 8 ❌ SOLO 4 CARACTERES
+        │  └─ RESULTADO: NO CUMPLE ❌
+        │
+        │  if (!preg_match($regex, $password)) {
+        │      Validator::$errors['password'] = '...'
+        │  }
+        │
+        ▼ HTTP 422 Unprocessable Entity
+    {
+      "success": false,
+      "message": "Errores de validación",
+      "errors": {
+        "password": "Contraseña debe tener mínimo 8 caracteres, " +
+                   "incluir mayúscula, minúscula y número"
+      }
+    }
+        │
+        ▼ Frontend recibe 422
+    Muestra en input: "❌ Contraseña debe tener mínimo 8 caracteres..."
+    Usuario intenta: "MiPass123!" ✅ OK
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 9: FLUJO DE TOKENS - TIMELINE 24 HORAS
+═══════════════════════════════════════════════════════════════════════════════
+
+HORA 0: Login
+───────────────
+User: juan@mail.com
+Pass: MiPass123!
+      │
+      ▼ Backend genera JWT
+exp = current_unix_time + 86400 (24 horas en segundos)
+      │
+      ▼ Token devuelto
+token: "eyJ..."
+exp_unix: 1675086400
+
+HORA 12: Usando API
+──────────────────
+Request: GET /api/auth/me
+Header: Authorization: Bearer eyJ...
+      │
+      ▼ JWTHandler::verify()
+now = 1675040000
+exp = 1675086400
+exp > now  → VÁLIDO ✅
+
+HORA 24: Token expira
+──────────────────────
+Request: GET /api/routes/search
+Header: Authorization: Bearer eyJ...
+      │
+      ▼ JWTHandler::verify()
+now = 1675176000
+exp = 1675086400
+exp < now  → EXPIRADO ❌
+
+Response: Error 401
+Frontend: localStorage.removeItem('token')
+          navigate('/login')
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DIAGRAMA 10: FLUJO DE ERRORES - JERARQUIA
+═══════════════════════════════════════════════════════════════════════════════
+
+                        REQUEST
+                            │
+                            ▼
+            ┌─ ¿JSON Parse error?
+            │  └─ HTTP 400 Bad Request
+            │
+            ├─ ¿Content-Type no JSON?
+            │  └─ HTTP 400 Bad Request
+            │
+            ├─ ¿Endpoint no existe?
+            │  └─ HTTP 404 Not Found
+            │
+            ├─ ¿Requiere JWT?
+            │  ├─ ¿No tiene JWT?
+            │  │  └─ HTTP 401 Unauthorized
+            │  │
+            │  └─ ¿JWT inválido?
+            │     ├─ Expirado
+            │     ├─ Firma incorrecta
+            │     └─ HTTP 401 Unauthorized
+            │
+            ├─ ¿Usuario autenticado?
+            │  ├─ ¿No es admin (pero requiere)?
+            │  │  └─ HTTP 403 Forbidden
+            │  │
+            │  └─ ¿No es propietario (pero requiere)?
+            │     └─ HTTP 403 Forbidden
+            │
+            ├─ ¿Datos de entrada inválidos?
+            │  ├─ Email mal formado
+            │  ├─ Contraseña débil
+            │  ├─ Campo requerido vacío
+            │  └─ HTTP 422 Unprocessable Entity
+            │
+            ├─ ¿Validación de negocio falla?
+            │  ├─ Email ya registrado
+            │  ├─ Recurso no existe
+            │  ├─ Violación de regla de negocio
+            │  └─ HTTP 422 Unprocessable Entity
+            │
+            ├─ ¿Error en BD?
+            │  ├─ Constraint violation
+            │  ├─ Connection error
+            │  └─ HTTP 500 Internal Server Error
+            │
+            └─ ¿Otro error no contemplado?
+               └─ HTTP 500 Internal Server Error
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FIN DE DIAGRAMAS DE FLUJO
+═══════════════════════════════════════════════════════════════════════════════
