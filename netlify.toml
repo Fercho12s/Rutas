@@ -2,7 +2,12 @@
   command = "npm run build"
   publish = "dist/public"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 # Redirects for SPA (Single Page Application) routing
+# API routes are handled by Netlify Functions via their config.path settings
 [[redirects]]
   from = "/*"
   to = "/index.html"
